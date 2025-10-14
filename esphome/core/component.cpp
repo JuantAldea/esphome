@@ -362,6 +362,7 @@ void log_update_interval(const char *tag, PollingComponent *component) {
     ESP_LOGCONFIG(tag, "  Update Interval: %.1fs", update_interval / 1000.0f);
   }
 }
+
 float Component::get_actual_setup_priority() const {
   // Check if there's an override in the global vector
   if (setup_priority_overrides) {
