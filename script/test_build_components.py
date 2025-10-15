@@ -304,6 +304,7 @@ def run_esphome_test(
     esphome_command: str,
     continue_on_fail: bool,
     use_testing_mode: bool = False,
+    retrying: bool = False,
 ) -> TestResult:
     """Run esphome test for a single component.
 
@@ -363,8 +364,11 @@ def run_esphome_test(
         ]
     )
 
+    cmd_clean = cmd[:]
+
     # Add command and config file
     cmd.extend([esphome_command, str(output_file)])
+    cmd_clean.extend(["clean", str(output_file)])
 
     # Build command string for display/logging
     cmd_str = " ".join(cmd)
@@ -379,6 +383,22 @@ def run_esphome_test(
 
     try:
         result = subprocess.run(cmd, check=False)
+        if result.returncode != 0 and not retrying:
+            print("Compile failed: Cleaning")
+            _ = subprocess.run(cmd_clean, check=False)
+            print("Retrying...")
+            return run_esphome_test(
+                component,
+                test_file,
+                platform,
+                platform_with_version,
+                base_file,
+                build_dir,
+                esphome_command,
+                continue_on_fail,
+                use_testing_mode,
+                retrying=True,
+            )
         success = result.returncode == 0
         duration = time.time() - start_time
 
@@ -428,6 +448,7 @@ def run_grouped_test(
     tests_dir: Path,
     esphome_command: str,
     continue_on_fail: bool,
+    retrying: bool = False,
 ) -> TestResult:
     """Run esphome test for a group of components with shared bus configs.
 
@@ -506,9 +527,12 @@ def run_grouped_test(
         "-s",
         "target_platform",
         platform,
-        esphome_command,
-        str(output_file),
     ]
+
+    cmd_clean = cmd[:]
+
+    cmd.extend([esphome_command, str(output_file)])
+    cmd_clean.extend(["clean", str(output_file)])
 
     # Build command string for display/logging
     cmd_str = " ".join(cmd)
@@ -523,6 +547,23 @@ def run_grouped_test(
 
     try:
         result = subprocess.run(cmd, check=False)
+        print(f"Result code: {result.returncode}")
+        if result.returncode != 0 and not retrying:
+            print("Compile failed: Cleaning")
+            _ = subprocess.run(cmd_clean, check=False)
+            print("Retrying...")
+            return run_grouped_test(
+                components,
+                platform,
+                platform_with_version,
+                base_file,
+                build_dir,
+                tests_dir,
+                esphome_command,
+                continue_on_fail,
+                retrying=True,
+            )
+
         success = result.returncode == 0
         duration = time.time() - start_time
 
